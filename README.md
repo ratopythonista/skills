@@ -8,11 +8,15 @@ lists it.
 ## Install
 
 ```bash
-npx skills add ratopythonista/skills                          # every skill in the repo
-npx skills add ratopythonista/skills/tree/main/skills/pytest-fasthtml   # just one
+npx skills add ratopythonista/skills                                            # every skill in the repo
+npx skills add https://github.com/ratopythonista/skills/tree/main/skills/pytest-fasthtml  # just one
 ```
 
-The CLI writes the skill into your project's agent skills folder and pins it in `skills-lock.json`.
+The `owner/repo` form installs the whole repo; the single-skill form needs the full URL — a bare
+`ratopythonista/skills/tree/main/...` is read as an unknown repository and reports `No skills found`.
+
+The CLI writes the skill into your project's agent skills folder (`.agents/skills/<name>`, symlinked into
+`.claude/skills`) and pins it in `skills-lock.json`.
 
 ## Skills
 
