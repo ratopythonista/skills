@@ -44,6 +44,7 @@
       "src/<package>/templates/home.html",
       "src/<package>/templates/partials/ping.html",
       "src/<package>/static/input.css",
+      "src/<package>/static/app.css",
       "src/<package>/static/htmx.min.js",
       "src/<package>/static/HTMX-LICENSE.txt",
       "tests/test_home.py",
