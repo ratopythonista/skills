@@ -3,9 +3,9 @@
   "notGrouped": "bottom",
   "groupings": [
     {
-      "title": "Python + FastHTML",
-      "description": "Test and ship the Python side of the flow.",
-      "skills": ["pytest-fasthtml"]
+      "title": "Pack Python",
+      "description": "Generate, gate and test the Python side of the flow.",
+      "skills": ["python-scaffold", "python-verify", "pytest-fasthtml"]
     }
   ]
 }

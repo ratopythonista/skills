@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "name": "pack-python",
+  "description": "Portable Python engineering pack: normative standards, deterministic scaffold, merge-gate verify, test mechanics and web profile.",
+  "skills": {
+    "python-standards": { "kind": "norm", "range": ">=1.0,<2.0", "status": "planned" },
+    "python-scaffold": { "kind": "generator", "range": ">=1.0,<2.0", "status": "implemented" },
+    "python-verify": { "kind": "gate", "range": ">=1.0,<2.0", "status": "implemented" },
+    "python-testing": { "kind": "mechanics", "range": ">=1.0,<2.0", "status": "planned" },
+    "python-web": { "kind": "profile", "range": ">=1.0,<2.0", "status": "planned" }
+  },
+  "profiles": {
+    "web": {
+      "stack": ["django", "django-htmx", "tailwind-standalone", "granian"],
+      "scaffold": "python-scaffold",
+      "skills": ["python-standards", "python-verify", "python-testing", "python-web"]
+    }
+  },
+  "verify": {
+    "commands": ["uv sync --frozen", "bash scripts/check.sh"],
+    "subdir_commands": ["cd python && uv sync --frozen", "cd python && bash scripts/check.sh"],
+    "size_check": { "warn": 200, "fail": 250 }
+  },
+  "scaffold": {
+    "profiles": ["web"],
+    "flags": ["--profile", "--project", "--package", "--target", "--check", "--force", "--dry-run"],
+    "python": "3.12",
+    "generated": [
+      ".python-version",
+      "pyproject.toml",
+      "manage.py",
+      "scripts/check.sh",
+      "scripts/size_check.py",
+      "scripts/build_css.sh",
+      "scripts/fetch_tailwind.sh",
+      "scripts/serve.sh",
+      "src/<package>/__init__.py",
+      "src/<package>/apps.py",
+      "src/<package>/asgi.py",
+      "src/<package>/settings.py",
+      "src/<package>/urls.py",
+      "src/<package>/views.py",
+      "src/<package>/templates/base.html",
+      "src/<package>/templates/home.html",
+      "src/<package>/templates/partials/ping.html",
+      "src/<package>/static/input.css",
+      "src/<package>/static/htmx.min.js",
+      "src/<package>/static/HTMX-LICENSE.txt",
+      "tests/test_home.py",
+      "tests/e2e/conftest.py",
+      "tests/e2e/test_smoke.py"
+    ]
+  }
+}

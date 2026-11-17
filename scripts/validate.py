@@ -86,6 +86,67 @@ def check_skill(path: Path) -> None:
             problems.append(f"{path}: link target `{target}` does not exist")
 
 
+def check_pack() -> None:
+    """The pack is the compatibility source the generator and CI read."""
+    path = ROOT / "pack.json"
+    if not path.is_file():
+        problems.append(f"{path}: missing; the five skills share one pack manifest")
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        problems.append(f"{path}: invalid JSON ({exc})")
+        return
+    if data.get("format") != 1:
+        problems.append(f"{path}: `format` must be 1")
+    skills = data.get("skills")
+    if not isinstance(skills, dict) or len(skills) != 5:
+        problems.append(f"{path}: `skills` must list the five pack skills")
+        return
+    for name, meta in skills.items():
+        skill_dir = SKILLS / name
+        exists = (skill_dir / "SKILL.md").is_file()
+        status = meta.get("status") if isinstance(meta, dict) else None
+        if status == "implemented" and not exists:
+            problems.append(f"{path}: `{name}` is implemented but has no SKILL.md")
+        if status not in {"implemented", "planned"}:
+            problems.append(f"{path}: `{name}` has status `{status}`")
+        if exists:
+            _, front = frontmatter((skill_dir / "SKILL.md").read_text(encoding="utf-8"),
+                                   skill_dir / "SKILL.md")
+            declared = front.get("version", "")
+            expected = str(meta.get("range", "")) if isinstance(meta, dict) else ""
+            if declared:
+                major = declared.split(".")[0]
+                if f">={major}" not in expected:
+                    problems.append(
+                        f"{path}: `{name}` version {declared} is outside its range `{expected}`"
+                    )
+
+    verify = data.get("verify", {})
+    commands = verify.get("commands", [])
+    size = verify.get("size_check", {})
+    verify_text = (SKILLS / "python-verify" / "SKILL.md").read_text(encoding="utf-8")
+    for command in commands:
+        if command not in verify_text:
+            problems.append(f"{path}: python-verify does not cite canonical command `{command}`")
+    for key in ("warn", "fail"):
+        value = str(size.get(key, ""))
+        if value and value not in verify_text:
+            problems.append(f"{path}: python-verify does not cite size {key} `{value}`")
+
+    scaffold_meta_skill = SKILLS / "python-scaffold" / "SKILL.md"
+    if scaffold_meta_skill.is_file():
+        _, front = frontmatter(scaffold_meta_skill.read_text(encoding="utf-8"),
+                               scaffold_meta_skill)
+        requires = front.get("requires", "")
+        range_ = str(data["skills"].get("python-verify", {}).get("range", ""))
+        if range_ and range_ not in requires:
+            problems.append(
+                f"{scaffold_meta_skill}: requires `{requires}` must include python-verify `{range_}`"
+            )
+
+
 def check_display_config() -> None:
     path = ROOT / "skills.sh.json"
     if not path.exists():
@@ -116,6 +177,7 @@ def main() -> int:
         problems.append(f"{SKILLS}: no skills found")
     for path in files:
         check_skill(path)
+    check_pack()
     check_display_config()
     for problem in problems:
         print(problem)

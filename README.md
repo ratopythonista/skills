@@ -22,14 +22,22 @@ The CLI writes the skill into your project's agent skills folder (`.agents/skill
 
 | Skill | What it fixes |
 |---|---|
+| [`python-scaffold`](skills/python-scaffold/SKILL.md) | Deterministic project generation from the pack templates: `web` profile (Django 6.1 + HTMX + Tailwind + Granian), src-layout, `uv` lock, managed `check.sh` and `size_check.py`. |
+| [`python-verify`](skills/python-verify/SKILL.md) | The merge gate: canonical `verify_commands`, `scripts/check.sh`, the 200/250 size check, drift and CI playbook. |
 | [`pytest-fasthtml`](skills/pytest-fasthtml/SKILL.md) | Test mechanics for pytest + FastHTML: where a test belongs (unit vs integration vs e2e), fixtures, async handlers, HTMX requests, Playwright, and the `uv`/`ruff` commands. |
+
+`pack.json` is the single source for the pack's skill ranges, canonical verify commands, size thresholds and
+the generated file list. `scripts/validate.py` checks every implemented skill against it.
 
 ## Layout
 
 ```
 skills/<name>/SKILL.md     # one skill
+skills/<name>/scripts/     # executables the skill owns (scaffold)
+skills/<name>/templates/   # canonical bytes a skill owns (scaffold, verify)
+pack.json                  # pack compatibility, commands, size policy, generated files
 skills.sh.json             # how this repo's page is grouped on skills.sh
-scripts/validate.py        # frontmatter + link checks, run by CI
+scripts/validate.py        # frontmatter, links, pack consistency; run by CI
 ```
 
 ## Adding a skill
