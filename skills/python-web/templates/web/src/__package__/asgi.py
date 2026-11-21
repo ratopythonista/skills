@@ -15,4 +15,3 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "{{PACKAGE}}.settings")
 application = get_asgi_application()
 if settings.DEBUG:
     application = ASGIStaticFilesHandler(application)
-
