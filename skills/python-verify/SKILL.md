@@ -1,9 +1,9 @@
 ---
 name: python-verify
-description: The Python merge gate. Defines scripts/check.sh, the canonical verify_commands, the 200/250 size check and the drift check, and how to keep the gate green without mise. Use when wiring CI or a merge gate for a Python repo, when check.sh fails, or when a card's Skills line names python-verify.
+description: The Python merge gate. Defines scripts/check.sh, the canonical verify_commands, the 200/250 size check, the 90% line+branch coverage floor and the drift check, and how to keep the gate green without mise. Use when wiring CI or a merge gate for a Python repo, when check.sh fails, or when a card's Skills line names python-verify.
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Verify — the Python gate
@@ -55,7 +55,7 @@ uv run --frozen ruff check .
 uv run --frozen ruff format --check .
 uv run --frozen ty check src
 uv run --frozen python scripts/size_check.py
-uv run --frozen python -m pytest
+uv run --frozen python -m pytest --cov --cov-report=term-missing
 ```
 
 - `cd "$(dirname "$0")/.."` makes the script safe from any cwd, including the board's worktree.
@@ -82,6 +82,26 @@ signal:
 The size check reads product code, not tests or scripts. A 400-line test file is a testing-mechanics problem,
 not a product-size problem.
 
+## Coverage — 90% of lines and branches
+
+`pytest-cov` is a dev dependency and the gate runs it over `src`:
+
+```bash
+uv run --frozen python -m pytest --cov --cov-report=term-missing
+```
+
+The floor and the exclusions live in `pyproject.toml`, not in the command:
+
+- `[tool.coverage.run] branch = true`, `source = ["src"]`.
+- Omit entrypoints and configuration only: `*/migrations/*`, `manage.py`, `*/settings.py`, `*/asgi.py`,
+  `*/wsgi.py`, `*/apps.py`. `urls.py`, views, forms, models and services stay measured.
+- `[tool.coverage.report] fail_under = 90`, `show_missing = true`.
+- A missing test is the fix. Raising `fail_under` down or adding an omit to make the gate green is a
+  standards violation, not a gate configuration.
+
+E2E is excluded by the default marker, so coverage measures unit and integration tests. Browser flows stay
+in the QA lane.
+
 ## Drift check — the scaffold regenerates byte for byte
 
 `python-scaffold` owns `--check`. In a generated repo:
@@ -90,11 +110,13 @@ not a product-size problem.
 python3 .agents/skills/python-scaffold/scripts/scaffold.py --profile web --target . --check
 ```
 
-`--check` re-renders every managed file in memory, compares bytes and prints a unified diff. Exit 0 means the
-checked-in generated files match; exit 1 means drift. The check needs the pack installed: it reads the
-canonical `scripts/check.sh` from this skill, so a project that vendors only the generated files cannot run
-it. In CI without the pack, either install the pack in the workflow or skip the drift check and rely on the
-gate; do not copy a second source of truth into the repo.
+`--check` re-renders every managed file in memory — `scripts/check.sh`, `scripts/size_check.py` and
+`CODING_STANDARDS.md` — compares bytes and prints a unified diff. Exit 0 means the checked-in generated
+files match; exit 1 means drift. `CODING_STANDARDS.md` preserves the local keep block; edits outside it are
+drift. The check needs the pack installed: it reads the canonical files from `python-verify`,
+`python-standards`, `python-testing` and `python-web`, so a project that vendors only the generated files
+cannot run it. In CI without the pack, either install the pack in the workflow or skip the drift check and
+rely on the gate; do not copy a second source of truth into the repo.
 
 ## CI
 
@@ -117,6 +139,7 @@ green build today and a broken checkout tomorrow.
 | `ruff format --check` fails | code was not formatted | run `uv run ruff format .`, commit |
 | `ty check` fails on Django names | `django-types` missing or stale | add/refresh the dev dependency; do not blanket-ignore |
 | size check fails at 250 | a module mixes contexts | split by cohesion; declare only a real exception |
+| coverage below 90% | a branch has no test | add the missing test; do not raise the omit list |
 | gate green locally, red in the worktree | untracked file or uncommitted lock | commit every generated artifact the gate reads |
 
 ## Anti-patterns

@@ -3,15 +3,28 @@ name: python-scaffold
 description: Deterministic generator for Python project skeletons from the pack templates. Use when creating a new Python repo or web app, when regenerating the managed check.sh/size_check.py, or when a card's Skills line names python-scaffold.
 license: MIT
 metadata:
-  version: 1.0.0
-  requires: python-verify>=1.0,<2.0
+  version: 1.1.0
+  requires: python-standards>=1.0,<2.0; python-verify>=1.1,<2.0; python-testing>=1.0,<2.0; python-web>=1.0,<2.0
 ---
 
 # Scaffold — deterministic project generation
 
-`scripts/scaffold.py` renders a project from `templates/<profile>/`. It is stdlib-only, Python 3.12, and
+`scripts/scaffold.py` renders a project from the pack's templates. It is stdlib-only, Python 3.12, and
 writes nothing outside `--target`. The generator owns **files**, never prose: every `SKILL.md` is authored by
 hand.
+
+The templates are composed from the skill that owns each artifact:
+
+| Source | Owns |
+| :--- | :--- |
+| `python-scaffold/templates/<profile>` | generic project files (`.gitignore`, `.python-version`) |
+| `python-web/templates/<profile>` | Django config, stack, Tailwind, Granian |
+| `python-testing/templates/<profile>` | test skeleton, e2e fixture |
+| `python-verify/templates` | `check.sh`, `size_check.py` |
+| `python-standards/templates` | `CODING_STANDARDS.md` body |
+| `python-web/templates/overrides` | the three profile override blocks |
+
+A missing skill is an error (exit 2), never a half-configured project.
 
 ## Command
 
@@ -39,24 +52,29 @@ python3 .agents/skills/python-scaffold/scripts/scaffold.py \
 - Tokens are `{{PROJECT}}`, `{{PACKAGE}}`, `{{PACKAGE_CLASS}}`; the path token `__package__` becomes the
   package name. An unknown or unresolved token is an error, never a silently literal `{{...}}`.
 - A second run writes nothing. Re-running with the same inputs reports `0 written`.
-- The generator refuses a `python-verify` outside its `metadata.requires` range (exit 2) or a missing
-  `python-verify` (exit 2). A partial pack is an error, not a half-configured project.
+- The generator refuses a pack outside its `metadata.requires` ranges (exit 2) or a missing skill, naming
+  the skill (exit 2). A partial pack is an error, not a half-configured project.
+- The stamp and every managed file are rendered from the installed skill versions; a version bump changes
+  the bytes and `--check` reports the drift.
 
 ## Managed vs project-owned
 
-Only the gate files are re-rendered and drift-checked; the rest are one-shot bootstrap:
+Only the generated contract files are re-rendered and drift-checked; the rest are one-shot bootstrap:
 
 | Kind | Paths | Re-run behavior |
 | :--- | :--- | :--- |
-| managed | `scripts/check.sh`, `scripts/size_check.py` | compared by `--check`; overwritten only with `--force` |
+| managed | `scripts/check.sh`, `scripts/size_check.py`, `CODING_STANDARDS.md` | compared by `--check`; overwritten only with `--force` |
 | project-owned | `pyproject.toml`, `manage.py`, `settings.py`, `urls.py`, views, templates, tests | created when missing; never overwritten once present |
 
 This is deliberate. Adding a dependency belongs in `pyproject.toml`, and a byte-for-byte regeneration would
-erase it. The gate files have one semantic owner (`python-verify`) and no local edits worth preserving; when
-the contract changes, regenerate them.
+erase it. The managed files have one semantic owner each and no local edits worth preserving, except the
+`CODING_STANDARDS.md` keep block:
 
-`python-standards` will add `CODING_STANDARDS.md` as a managed file with `<!-- pack-python:keep -->` blocks
-and a version stamp. Until that skill exists, the scaffold does not write it.
+- `scripts/check.sh` and `scripts/size_check.py` come from `python-verify`.
+- `CODING_STANDARDS.md` is the body from `python-standards`, plus the three `python-web` overrides and a
+  stamp with every applied skill version.
+- `--check` preserves the local `<!-- pack-python:keep -->` block byte for byte; anything outside it is
+  drift.
 
 ## Web profile
 
@@ -65,7 +83,8 @@ src-layout. Generated layout:
 
 ```
 .python-version             3.12
-pyproject.toml              Django/HTMX/Granian; dev: pytest, pytest-django, Playwright, ruff, ty, django-types
+pyproject.toml              Django/HTMX/Granian; dev: pytest, pytest-cov, pytest-django, Playwright, ruff, ty, django-types
+CODING_STANDARDS.md         generated norm; keep block at the end (owned by python-standards + python-web)
 manage.py                   DJANGO_SETTINGS_MODULE=<package>.settings
 scripts/check.sh            canonical gate (owned by python-verify)
 scripts/size_check.py       200 warns, 250 fails (owned by python-verify)
@@ -98,7 +117,6 @@ template changes; the gate does not compile CSS.
 
 ## What the scaffold does not do
 
-- It does not write `CODING_STANDARDS.md` (waits for `python-standards`).
 - It does not configure CI, credentials, deploy, or the super-board (onboarding owns those).
 - It does not create the virtualenv, the lock, the database, or browser binaries.
 - It does not edit files outside `--target`.

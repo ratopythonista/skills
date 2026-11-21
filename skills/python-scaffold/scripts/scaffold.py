@@ -29,7 +29,25 @@ RANGE_RE = re.compile(r"(>=|<=|>|<|==)\s*(\d+(?:\.\d+){0,2})")
 TOKENS = {"PROJECT", "PACKAGE", "PACKAGE_CLASS"}
 EXECUTABLE = {"manage.py"}
 EXECUTABLE_PREFIXES = ("scripts/",)
-MANAGED = {Path("scripts/check.sh"), Path("scripts/size_check.py")}
+MANAGED = {
+    Path("scripts/check.sh"),
+    Path("scripts/size_check.py"),
+    Path("CODING_STANDARDS.md"),
+}
+PACK_ORDER = (
+    "python-standards",
+    "python-scaffold",
+    "python-verify",
+    "python-testing",
+    "python-web",
+)
+KEEP_START = b"<!-- pack-python:keep -->"
+KEEP_END = b"<!-- /pack-python:keep -->"
+REQUIRE_RE = re.compile(r"^([a-z0-9-]+)\s*(.+)$")
+PROFILE_SKILLS = {
+    "web": ("python-web", "python-testing"),
+}
+OVERRIDE_SLOTS = ("dependencies", "structure", "pydantic")
 
 
 class ScaffoldError(Exception):
@@ -99,27 +117,47 @@ def satisfies(version: str, spec: str, *, where: str) -> bool:
     return True
 
 
-def require_verify() -> Path:
-    verify = SKILLS_DIR / "python-verify"
-    skill = verify / "SKILL.md"
+def skill_frontmatter(name: str) -> tuple[Path, dict[str, str]]:
+    skill = SKILLS_DIR / name / "SKILL.md"
     if not skill.is_file():
         raise ScaffoldError(
-            "python-verify is not installed next to python-scaffold; "
+            f"{name} is not installed next to python-scaffold; "
             "install the pack as a set (npx skills add ratopythonista/skills)"
         )
-    _, own_meta = parse_frontmatter(SKILL_DIR / "SKILL.md")
-    own_version = own_meta.get("version", "")
-    spec = own_meta.get("requires", "")
-    if not spec:
-        raise ScaffoldError("python-scaffold/SKILL.md: metadata.requires is missing")
-    _, verify_meta = parse_frontmatter(skill)
-    verify_version = verify_meta.get("version", "")
-    if not satisfies(verify_version, spec, where="python-verify/SKILL.md"):
-        raise ScaffoldError(
-            f"python-verify {verify_version} is outside python-scaffold {own_version}'s "
-            f"range `{spec}`; install a compatible pack"
-        )
-    return verify
+    return skill, parse_frontmatter(skill)[1]
+
+
+def check_requires(owner: str, spec: str, versions: dict[str, str]) -> None:
+    for clause in spec.split(";"):
+        clause = clause.strip()
+        if not clause:
+            continue
+        match = REQUIRE_RE.match(clause)
+        if match is None:
+            raise ScaffoldError(f"{owner}/SKILL.md: cannot parse requirement `{clause}`")
+        name, range_ = match.group(1), match.group(2).strip()
+        if name not in versions:
+            raise ScaffoldError(f"{owner} requires {name}, which is not installed")
+        if not satisfies(versions[name], range_, where=f"{owner} requires {name}"):
+            raise ScaffoldError(
+                f"{name} {versions[name]} is outside {owner}'s range `{range_}`; "
+                "install a compatible pack"
+            )
+
+
+def require_pack(profile: str) -> dict[str, str]:
+    versions: dict[str, str] = {}
+    for name in PACK_ORDER:
+        _, meta = skill_frontmatter(name)
+        version = meta.get("version", "")
+        semver(version, where=f"{name}/SKILL.md")
+        versions[name] = version
+    for name in ("python-scaffold", "python-web", "python-testing"):
+        _, meta = skill_frontmatter(name)
+        check_requires(name, meta.get("requires", ""), versions)
+    if profile not in PROFILE_SKILLS:
+        raise ScaffoldError(f"unknown profile `{profile}`; available: web")
+    return versions
 
 
 def package_class(package: str) -> str:
@@ -184,15 +222,99 @@ def mode_for(relative: Path) -> int:
     return 0o644
 
 
-def template_files(profile: str) -> list[Path]:
-    root = TEMPLATES_DIR / profile
-    if not root.is_dir():
-        available = sorted(path.name for path in TEMPLATES_DIR.iterdir() if path.is_dir())
-        raise ScaffoldError(f"unknown profile `{profile}`; available: {', '.join(available)}")
-    return sorted(path for path in root.rglob("*") if path.is_file())
+def profile_roots(profile: str) -> list[Path]:
+    roots: list[Path] = []
+    generic = TEMPLATES_DIR / profile
+    if generic.is_dir():
+        roots.append(generic)
+    for owner in PROFILE_SKILLS[profile]:
+        root = SKILLS_DIR / owner / "templates" / profile
+        if not root.is_dir():
+            raise ScaffoldError(f"{owner} is missing templates/{profile}")
+        roots.append(root)
+    if not roots:
+        raise ScaffoldError(f"unknown profile `{profile}`; available: web")
+    return roots
 
 
-def render(profile: str, project: str, package: str, verify: Path) -> list[Rendered]:
+def template_files(profile: str) -> list[tuple[Path, Path]]:
+    return [
+        (root, path)
+        for root in profile_roots(profile)
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    ]
+
+
+def stamp(versions: dict[str, str], profile: str) -> str:
+    lines = [
+        "<!-- pack-python",
+        "  format: 1",
+        "  managed-by: pack-python",
+        f"  profile: {profile}",
+        "  skills:",
+    ]
+    lines.extend(f"    - {name}@{versions[name]}" for name in PACK_ORDER)
+    lines.append("-->")
+    return "\n".join(lines) + "\n"
+
+
+def render_standards(profile: str, versions: dict[str, str], tokens: dict[str, str]) -> bytes:
+    source = SKILLS_DIR / "python-standards" / "templates" / "CODING_STANDARDS.md"
+    if not source.is_file():
+        raise ScaffoldError("python-standards is missing templates/CODING_STANDARDS.md")
+    text = render_text(source.read_text(encoding="utf-8"), tokens, where=str(source))
+    for slot in OVERRIDE_SLOTS:
+        marker = f"<!-- pack-python:slot={slot} -->"
+        if profile == "web":
+            override = SKILLS_DIR / "python-web" / "templates" / "overrides" / f"{slot}.md"
+            if not override.is_file():
+                raise ScaffoldError(f"python-web is missing templates/overrides/{slot}.md")
+            replacement = render_text(
+                override.read_text(encoding="utf-8"), tokens, where=str(override)
+            ).strip()
+            text = text.replace(marker, replacement)
+        else:
+            text = text.replace(marker, "")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return (stamp(versions, profile) + "\n" + text).encode("utf-8")
+
+
+def keep_block(data: bytes) -> bytes | None:
+    start = data.find(KEEP_START)
+    if start < 0:
+        return None
+    end = data.find(KEEP_END, start)
+    if end < 0:
+        return None
+    return data[start : end + len(KEEP_END)]
+
+
+def with_keep(rendered: bytes, destination: Path) -> bytes:
+    """Replace the template keep block with the target's local block, if present."""
+    if not destination.is_file():
+        return rendered
+    local = keep_block(destination.read_bytes())
+    if local is None:
+        return rendered
+    start = rendered.find(KEEP_START)
+    if start < 0:
+        return rendered
+    end = rendered.find(KEEP_END, start)
+    if end < 0:
+        return rendered
+    return rendered[:start] + local + rendered[end + len(KEEP_END) :]
+
+
+def expected_content(item: Rendered, target: Path) -> bytes:
+    if item.path != Path("CODING_STANDARDS.md"):
+        return item.content
+    return with_keep(item.content, target / item.path)
+
+
+def render(
+    profile: str, project: str, package: str, versions: dict[str, str]
+) -> list[Rendered]:
     validate_package(package)
     tokens = {
         "PROJECT": project,
@@ -200,20 +322,24 @@ def render(profile: str, project: str, package: str, verify: Path) -> list[Rende
         "PACKAGE_CLASS": package_class(package),
     }
     rendered: list[Rendered] = []
-    for source in template_files(profile):
-        relative = source.relative_to(TEMPLATES_DIR / profile)
+    for root, source in template_files(profile):
+        relative = source.relative_to(root)
         target = output_name(relative, package)
         text = source.read_text(encoding="utf-8")
         content = render_text(text, tokens, where=str(source)).encode("utf-8")
         rendered.append(Rendered(target, content, mode_for(target)))
 
     for external in ("check.sh", "size_check.py"):
-        source = verify / "templates" / external
+        source = SKILLS_DIR / "python-verify" / "templates" / external
         if not source.is_file():
             raise ScaffoldError(f"python-verify is missing templates/{external}")
         relative = Path("scripts") / external
         content = source.read_text(encoding="utf-8").encode("utf-8")
         rendered.append(Rendered(relative, content, 0o755))
+
+    rendered.append(
+        Rendered(Path("CODING_STANDARDS.md"), render_standards(profile, versions, tokens), 0o644)
+    )
 
     seen: set[Path] = set()
     for item in rendered:
@@ -260,8 +386,8 @@ def main(argv: list[str] | None = None) -> int:
         package = normalize_package(project)
 
     try:
-        verify = require_verify()
-        rendered = render(profile, project, package, verify)
+        versions = require_pack(profile)
+        rendered = render(profile, project, package, versions)
     except ScaffoldError as exc:
         print(f"scaffold: {exc}", file=sys.stderr)
         return 2
@@ -279,10 +405,11 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             destination = target / item.path
             current = destination.read_bytes() if destination.is_file() else b""
-            if current == item.content:
+            expected = expected_content(item, target)
+            if current == expected:
                 continue
             drift = True
-            print(diff_for(item.path, current, item.content), end="")
+            print(diff_for(item.path, current, expected), end="")
         if drift:
             return 1
         return 0
@@ -292,7 +419,7 @@ def main(argv: list[str] | None = None) -> int:
         for item in rendered
         if item.path in MANAGED
         and (target / item.path).is_file()
-        and (target / item.path).read_bytes() != item.content
+        and (target / item.path).read_bytes() != expected_content(item, target)
     ]
     if conflicts and not args.force:
         print(
@@ -307,14 +434,15 @@ def main(argv: list[str] | None = None) -> int:
     kept = 0
     for item in rendered:
         destination = target / item.path
-        if destination.is_file() and destination.read_bytes() == item.content:
+        expected = expected_content(item, target)
+        if destination.is_file() and destination.read_bytes() == expected:
             unchanged += 1
             continue
         if destination.is_file() and item.path not in MANAGED:
             kept += 1
             continue
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(item.content)
+        destination.write_bytes(expected)
         destination.chmod(item.mode)
         written += 1
 

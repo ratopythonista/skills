@@ -135,6 +135,38 @@ def check_pack() -> None:
         if value and value not in verify_text:
             problems.append(f"{path}: python-verify does not cite size {key} `{value}`")
 
+    standards = data.get("standards", {})
+    if not isinstance(standards, dict):
+        problems.append(f"{path}: `standards` must be an object")
+        standards = {}
+    standards_file = standards.get("file", "")
+    if standards_file:
+        template = SKILLS / "python-standards" / "templates" / standards_file
+        if not template.is_file():
+            problems.append(f"{path}: python-standards is missing templates/{standards_file}")
+        generated = data.get("scaffold", {}).get("generated", [])
+        if standards_file not in generated:
+            problems.append(f"{path}: `{standards_file}` is not in scaffold.generated")
+    if standards.get("format") != 1:
+        problems.append(f"{path}: `standards.format` must be 1")
+    overrides = standards.get("overrides", [])
+    if not overrides:
+        problems.append(f"{path}: `standards.overrides` must name the profile slots")
+    for slot in overrides:
+        override = SKILLS / "python-web" / "templates" / "overrides" / f"{slot}.md"
+        if not override.is_file():
+            problems.append(f"{path}: python-web is missing templates/overrides/{slot}.md")
+
+    coverage = verify.get("coverage", {})
+    if not isinstance(coverage, dict):
+        problems.append(f"{path}: `verify.coverage` must be an object")
+        coverage = {}
+    fail_under = str(coverage.get("fail_under", ""))
+    if fail_under and fail_under not in verify_text:
+        problems.append(f"{path}: python-verify does not cite coverage floor `{fail_under}`")
+    if coverage.get("branch") is True and "branch = true" not in verify_text:
+        problems.append(f"{path}: python-verify does not cite branch coverage")
+
     scaffold_meta_skill = SKILLS / "python-scaffold" / "SKILL.md"
     if scaffold_meta_skill.is_file():
         _, front = frontmatter(scaffold_meta_skill.read_text(encoding="utf-8"),

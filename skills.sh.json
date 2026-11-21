@@ -5,7 +5,14 @@
     {
       "title": "Pack Python",
       "description": "Generate, gate and test the Python side of the flow.",
-      "skills": ["python-scaffold", "python-verify", "pytest-fasthtml"]
+      "skills": [
+        "python-standards",
+        "python-scaffold",
+        "python-verify",
+        "python-testing",
+        "python-web",
+        "pytest-fasthtml"
+      ]
     }
   ]
 }

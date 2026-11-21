@@ -3,23 +3,29 @@
   "name": "pack-python",
   "description": "Portable Python engineering pack: normative standards, deterministic scaffold, merge-gate verify, test mechanics and web profile.",
   "skills": {
-    "python-standards": { "kind": "norm", "range": ">=1.0,<2.0", "status": "planned" },
-    "python-scaffold": { "kind": "generator", "range": ">=1.0,<2.0", "status": "implemented" },
-    "python-verify": { "kind": "gate", "range": ">=1.0,<2.0", "status": "implemented" },
-    "python-testing": { "kind": "mechanics", "range": ">=1.0,<2.0", "status": "planned" },
-    "python-web": { "kind": "profile", "range": ">=1.0,<2.0", "status": "planned" }
+    "python-standards": { "kind": "norm", "range": ">=1.0,<2.0", "status": "implemented" },
+    "python-scaffold": { "kind": "generator", "range": ">=1.1,<2.0", "status": "implemented" },
+    "python-verify": { "kind": "gate", "range": ">=1.1,<2.0", "status": "implemented" },
+    "python-testing": { "kind": "mechanics", "range": ">=1.0,<2.0", "status": "implemented" },
+    "python-web": { "kind": "profile", "range": ">=1.0,<2.0", "status": "implemented" }
   },
   "profiles": {
     "web": {
       "stack": ["django", "django-htmx", "tailwind-standalone", "granian"],
       "scaffold": "python-scaffold",
-      "skills": ["python-standards", "python-verify", "python-testing", "python-web"]
+      "skills": ["python-standards", "python-scaffold", "python-verify", "python-testing", "python-web"]
     }
+  },
+  "standards": {
+    "file": "CODING_STANDARDS.md",
+    "format": 1,
+    "overrides": ["dependencies", "structure", "pydantic"]
   },
   "verify": {
     "commands": ["uv sync --frozen", "bash scripts/check.sh"],
     "subdir_commands": ["cd python && uv sync --frozen", "cd python && bash scripts/check.sh"],
-    "size_check": { "warn": 200, "fail": 250 }
+    "size_check": { "warn": 200, "fail": 250 },
+    "coverage": { "fail_under": 90, "branch": true }
   },
   "scaffold": {
     "profiles": ["web"],
@@ -28,6 +34,7 @@
     "generated": [
       ".python-version",
       "pyproject.toml",
+      "CODING_STANDARDS.md",
       "manage.py",
       "scripts/check.sh",
       "scripts/size_check.py",
