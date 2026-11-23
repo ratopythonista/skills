@@ -3,7 +3,7 @@ name: python-scaffold
 description: Deterministic generator for Python project skeletons from the pack templates. Use when creating a new Python repo or web app, when regenerating the managed check.sh/size_check.py, or when a card's Skills line names python-scaffold.
 license: MIT
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   requires: python-standards>=1.0,<2.0; python-verify>=1.1,<2.0; python-testing>=1.0,<2.0; python-web>=1.0,<2.0
 ---
 
@@ -41,9 +41,11 @@ python3 .agents/skills/python-scaffold/scripts/scaffold.py \
 | `--target` | write root; never escaped |
 | `--dry-run` | print the rendered paths with `[managed]` marks; write nothing |
 | `--check` | re-render the **managed** files and diff; exit 1 on drift |
+| `--gate-only` | render only the managed files; never creates or reports app files |
 | `--force` | overwrite managed files that drifted |
 
 `--check` and `--dry-run` are mutually exclusive, and `--force` cannot be combined with `--check`.
+`--gate-only` combines with any mode; it only narrows what is rendered and written.
 
 ## Determinism contract
 
@@ -75,6 +77,13 @@ erase it. The managed files have one semantic owner each and no local edits wort
   stamp with every applied skill version.
 - `--check` preserves the local `<!-- pack-python:keep -->` block byte for byte; anything outside it is
   drift.
+
+**Existing repo: `--gate-only`.** An existing Python repo that already has `manage.py`, settings and tests
+must not receive a second app skeleton. `--gate-only` renders only the three managed files, so onboarding
+materializes the standards and the gate without touching project-owned files. The marker
+`[tool.pack-python]` in `pyproject.toml` (written once by onboarding) supplies the profile, project and
+package on later runs; pass them explicitly the first time. Managed drift is still refused without
+`--force`, exactly as in a full render.
 
 ## Web profile
 

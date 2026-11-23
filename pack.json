@@ -4,7 +4,7 @@
   "description": "Portable Python engineering pack: normative standards, deterministic scaffold, merge-gate verify, test mechanics and web profile.",
   "skills": {
     "python-standards": { "kind": "norm", "range": ">=1.0,<2.0", "status": "implemented" },
-    "python-scaffold": { "kind": "generator", "range": ">=1.1,<2.0", "status": "implemented" },
+    "python-scaffold": { "kind": "generator", "range": ">=1.2,<2.0", "status": "implemented" },
     "python-verify": { "kind": "gate", "range": ">=1.1,<2.0", "status": "implemented" },
     "python-testing": { "kind": "mechanics", "range": ">=1.0,<2.0", "status": "implemented" },
     "python-web": { "kind": "profile", "range": ">=1.0,<2.0", "status": "implemented" }
@@ -29,7 +29,7 @@
   },
   "scaffold": {
     "profiles": ["web"],
-    "flags": ["--profile", "--project", "--package", "--target", "--check", "--force", "--dry-run"],
+    "flags": ["--profile", "--project", "--package", "--target", "--check", "--gate-only", "--force", "--dry-run"],
     "python": "3.12",
     "generated": [
       ".python-version",

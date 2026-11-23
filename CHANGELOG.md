@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `python-scaffold` 1.2.0 — `--gate-only` renders only the three managed files, so an existing repo gets
+  `CODING_STANDARDS.md`, `scripts/check.sh` and `scripts/size_check.py` without a second app skeleton;
+  combines with `--check`, `--dry-run` and `--force`, and `pack.json` lists the flag.
 - `python-standards` 1.0.0 — the normative text: 10 sections, section anchors, the managed
   `CODING_STANDARDS.md` body, one keep block, semver by obligation, and the three profile override slots.
 - `python-testing` 1.0.0 — test mechanics: placement ladder, Django/HTMX fixtures, Playwright e2e against

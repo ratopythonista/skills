@@ -6,6 +6,7 @@ package always render the same bytes. Stdlib only, Python 3.12.
 
     scaffold.py --profile web --project torneios --target ../python
     scaffold.py --profile web --target ../python --check
+    scaffold.py --profile web --target ../python --gate-only
 """
 
 from __future__ import annotations
@@ -365,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", type=Path, default=Path("."), help="write root (default: .)")
     parser.add_argument("--check", action="store_true", help="re-render and diff; write nothing")
     parser.add_argument("--dry-run", action="store_true", help="list files; write nothing")
+    parser.add_argument("--gate-only", action="store_true",
+                        help="touch only the managed files (standards and gate); never app files")
     parser.add_argument("--force", action="store_true", help="overwrite managed files")
     args = parser.parse_args(argv)
 
@@ -388,6 +391,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         versions = require_pack(profile)
         rendered = render(profile, project, package, versions)
+        if args.gate_only:
+            rendered = [item for item in rendered if item.path in MANAGED]
     except ScaffoldError as exc:
         print(f"scaffold: {exc}", file=sys.stderr)
         return 2
@@ -448,7 +453,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"scaffold: {written} written, {unchanged} unchanged, {kept} project-owned kept "
-        f"({profile}, {package})"
+        f"({profile}, {package}{', gate-only' if args.gate_only else ''})"
     )
     return 0
 
