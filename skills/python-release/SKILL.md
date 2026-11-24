@@ -3,7 +3,7 @@ name: python-release
 description: The Python delivery path. Defines the managed CI workflow, the dependency-audit and secret-scan jobs, the release script, the changelog and tag contract, and the GitHub Release. Use when cutting a release, wiring CI or Dependabot, adding a license, recording an audit exception, or when a card's Skills line names python-release.
 license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   requires: python-verify>=1.1,<2.0
 ---
 

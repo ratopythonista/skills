@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `python-release` 0.1.1 — the `secrets` job checks out full history (`fetch-depth: 0`); with the default depth, gitleaks aborts on a PR range it cannot read.
 - `python-release` 0.1.0 — the delivery path: managed `ci.yml` (gate, audit, secrets), `dependabot.yml`
   (weekly `uv` + Actions, grouped patch/minor), `audit.sh` (`uv audit --locked` plus
   `.security/audit-ignores` via `--ignore-until-fixed`), `release.sh` (check, bump, changelog, annotated
