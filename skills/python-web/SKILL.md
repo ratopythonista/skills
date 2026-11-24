@@ -3,7 +3,7 @@ name: python-web
 description: The Django 6.1 + HTMX + Tailwind + Granian web profile for the pack. Use when building or reviewing a Django web app with HTMX fragments, Tailwind standalone, Granian, and django-types, or when a card's Skills line names python-web.
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   requires: python-standards>=1.0,<2.0; python-testing>=1.0,<2.0; python-verify>=1.1,<2.0; python-scaffold>=1.1,<2.0
 ---
 
@@ -47,6 +47,10 @@ tests/e2e/conftest.py  tests/e2e/test_smoke.py
 
 A new domain becomes a Django app with its own `models.py`, `views.py`, `urls.py`, templates and tests.
 Do not grow the project package into a layer dump; the base Structure rule still applies.
+
+`urls.py` routes `/admin/` (`admin.site.urls`): the admin app is already in `INSTALLED_APPS`, so a staff
+user gets the built-in admin without extra wiring. Register a model in the app's `admin.py` when the admin
+should edit it; a project that does not want the admin removes that one route.
 
 ## Settings
 

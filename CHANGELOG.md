@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `python-web` 1.1.0 — the generated `urls.py` routes `/admin/` (`admin.site.urls`). The admin app was
+  already in `INSTALLED_APPS`, so a fresh project had it enabled but unreachable; a project that does not
+  want the admin removes the one route.
 - `python-scaffold` 1.2.0 — `--gate-only` renders only the three managed files, so an existing repo gets
   `CODING_STANDARDS.md`, `scripts/check.sh` and `scripts/size_check.py` without a second app skeleton;
   combines with `--check`, `--dry-run` and `--force`, and `pack.json` lists the flag.

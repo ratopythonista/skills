@@ -7,7 +7,7 @@
     "python-scaffold": { "kind": "generator", "range": ">=1.2,<2.0", "status": "implemented" },
     "python-verify": { "kind": "gate", "range": ">=1.1,<2.0", "status": "implemented" },
     "python-testing": { "kind": "mechanics", "range": ">=1.0,<2.0", "status": "implemented" },
-    "python-web": { "kind": "profile", "range": ">=1.0,<2.0", "status": "implemented" }
+    "python-web": { "kind": "profile", "range": ">=1.1,<2.0", "status": "implemented" }
   },
   "profiles": {
     "web": {
