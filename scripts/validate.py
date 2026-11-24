@@ -100,8 +100,8 @@ def check_pack() -> None:
     if data.get("format") != 1:
         problems.append(f"{path}: `format` must be 1")
     skills = data.get("skills")
-    if not isinstance(skills, dict) or len(skills) != 5:
-        problems.append(f"{path}: `skills` must list the five pack skills")
+    if not isinstance(skills, dict) or len(skills) != 6:
+        problems.append(f"{path}: `skills` must list the six pack skills")
         return
     for name, meta in skills.items():
         skill_dir = SKILLS / name
@@ -172,11 +172,30 @@ def check_pack() -> None:
         _, front = frontmatter(scaffold_meta_skill.read_text(encoding="utf-8"),
                                scaffold_meta_skill)
         requires = front.get("requires", "")
-        range_ = str(data["skills"].get("python-verify", {}).get("range", ""))
-        if range_ and range_ not in requires:
-            problems.append(
-                f"{scaffold_meta_skill}: requires `{requires}` must include python-verify `{range_}`"
-            )
+        for required in ("python-verify", "python-release"):
+            range_ = str(data["skills"].get(required, {}).get("range", ""))
+            if range_ and range_ not in requires:
+                problems.append(
+                    f"{scaffold_meta_skill}: requires `{requires}` must include {required} `{range_}`"
+                )
+
+    delivery = data.get("delivery", {})
+    if not isinstance(delivery, dict):
+        problems.append(f"{path}: `delivery` must be an object")
+        delivery = {}
+    generated = data.get("scaffold", {}).get("generated", [])
+    templates = SKILLS / "python-release" / "templates"
+    for relative in delivery.get("managed", []) + delivery.get("one_shot", []):
+        if relative not in generated:
+            problems.append(f"{path}: delivery file `{relative}` is not in scaffold.generated")
+        source = templates / Path(relative).name
+        if not source.is_file():
+            problems.append(f"{path}: python-release is missing templates/{Path(relative).name}")
+    if delivery.get("pypi") != "opt-in":
+        problems.append(f"{path}: `delivery.pypi` must be `opt-in`")
+    for kind in ("app", "lib"):
+        if kind not in delivery.get("kinds", []):
+            problems.append(f"{path}: `delivery.kinds` must include `{kind}`")
 
 
 def check_display_config() -> None:

@@ -30,6 +30,7 @@ packages = ["src/{{PACKAGE}}"]
 
 [tool.pack-python]
 profile = "web"
+kind = "app"
 package = "{{PACKAGE}}"
 
 [tool.pytest.ini_options]

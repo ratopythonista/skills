@@ -1,10 +1,10 @@
 ---
 name: python-scaffold
-description: Deterministic generator for Python project skeletons from the pack templates. Use when creating a new Python repo or web app, when regenerating the managed check.sh/size_check.py, or when a card's Skills line names python-scaffold.
+description: Deterministic generator for Python project skeletons from the pack templates. Use when creating a new Python repo or web app, when regenerating the managed gate or delivery files, or when a card's Skills line names python-scaffold.
 license: MIT
 metadata:
-  version: 1.2.0
-  requires: python-standards>=1.0,<2.0; python-verify>=1.1,<2.0; python-testing>=1.0,<2.0; python-web>=1.0,<2.0
+  version: 1.3.0
+  requires: python-standards>=1.0,<2.0; python-verify>=1.1,<2.0; python-testing>=1.0,<2.0; python-web>=1.0,<2.0; python-release>=0.1,<1.0
 ---
 
 # Scaffold — deterministic project generation
@@ -21,6 +21,7 @@ The templates are composed from the skill that owns each artifact:
 | `python-web/templates/<profile>` | Django config, stack, Tailwind, Granian |
 | `python-testing/templates/<profile>` | test skeleton, e2e fixture |
 | `python-verify/templates` | `check.sh`, `size_check.py` |
+| `python-release/templates` | `ci.yml`, `audit.sh`, `release.sh`, `dependabot.yml`, `LICENSE` |
 | `python-standards/templates` | `CODING_STANDARDS.md` body |
 | `python-web/templates/overrides` | the three profile override blocks |
 
@@ -41,11 +42,13 @@ python3 .agents/skills/python-scaffold/scripts/scaffold.py \
 | `--target` | write root; never escaped |
 | `--dry-run` | print the rendered paths with `[managed]` marks; write nothing |
 | `--check` | re-render the **managed** files and diff; exit 1 on drift |
-| `--gate-only` | render only the managed files; never creates or reports app files |
+| `--gate-only` | render only the managed gate files (`CODING_STANDARDS.md`, `scripts/check.sh`, `scripts/size_check.py`) |
+| `--delivery-only` | render only the delivery files (CI, audit, release, Dependabot, `LICENSE`) |
 | `--force` | overwrite managed files that drifted |
 
-`--check` and `--dry-run` are mutually exclusive, and `--force` cannot be combined with `--check`.
-`--gate-only` combines with any mode; it only narrows what is rendered and written.
+`--check` and `--dry-run` are mutually exclusive, `--force` cannot be combined with `--check`, and
+`--gate-only` cannot be combined with `--delivery-only`. Each mode combines with `--check`, `--dry-run` and
+`--force`; it only narrows what is rendered and written. `--check` without a mode covers both sets.
 
 ## Determinism contract
 
@@ -65,25 +68,28 @@ Only the generated contract files are re-rendered and drift-checked; the rest ar
 
 | Kind | Paths | Re-run behavior |
 | :--- | :--- | :--- |
-| managed | `scripts/check.sh`, `scripts/size_check.py`, `CODING_STANDARDS.md` | compared by `--check`; overwritten only with `--force` |
-| project-owned | `pyproject.toml`, `manage.py`, `settings.py`, `urls.py`, views, templates, tests | created when missing; never overwritten once present |
+| managed | `scripts/check.sh`, `scripts/size_check.py`, `CODING_STANDARDS.md`; `.github/workflows/ci.yml`, `.github/dependabot.yml`, `scripts/audit.sh`, `scripts/release.sh` | compared by `--check`; overwritten only with `--force` |
+| one-shot | `LICENSE`, `pyproject.toml`, `manage.py`, settings, views, templates, tests | created when missing; never overwritten once present |
 
 This is deliberate. Adding a dependency belongs in `pyproject.toml`, and a byte-for-byte regeneration would
 erase it. The managed files have one semantic owner each and no local edits worth preserving, except the
 `CODING_STANDARDS.md` keep block:
 
 - `scripts/check.sh` and `scripts/size_check.py` come from `python-verify`.
+- `.github/workflows/ci.yml`, `.github/dependabot.yml`, `scripts/audit.sh` and `scripts/release.sh` come from
+  `python-release`.
+- `LICENSE` is the one-shot MIT text from `python-release`, written only when missing.
 - `CODING_STANDARDS.md` is the body from `python-standards`, plus the three `python-web` overrides and a
   stamp with every applied skill version.
 - `--check` preserves the local `<!-- pack-python:keep -->` block byte for byte; anything outside it is
   drift.
 
-**Existing repo: `--gate-only`.** An existing Python repo that already has `manage.py`, settings and tests
-must not receive a second app skeleton. `--gate-only` renders only the three managed files, so onboarding
-materializes the standards and the gate without touching project-owned files. The marker
-`[tool.pack-python]` in `pyproject.toml` (written once by onboarding) supplies the profile, project and
-package on later runs; pass them explicitly the first time. Managed drift is still refused without
-`--force`, exactly as in a full render.
+**Existing repo: `--gate-only` and `--delivery-only`.** An existing Python repo that already has `manage.py`,
+settings and tests must not receive a second app skeleton. Onboarding renders the gate files in one pass and
+the delivery files in another, so the repo gets standards, the gate, CI, audit, release and the license
+without project-owned files. The marker `[tool.pack-python]` in `pyproject.toml` (written once by onboarding)
+supplies the profile, project and package on later runs; pass them explicitly the first time. Managed drift
+is still refused without `--force`, exactly as in a full render.
 
 ## Web profile
 
@@ -94,9 +100,14 @@ src-layout. Generated layout:
 .python-version             3.12
 pyproject.toml              Django/HTMX/Granian; dev: pytest, pytest-cov, pytest-django, Playwright, ruff, ty, django-types
 CODING_STANDARDS.md         generated norm; keep block at the end (owned by python-standards + python-web)
-manage.py                   DJANGO_SETTINGS_MODULE=<package>.settings
+LICENSE                     MIT, one-shot (owned by python-release)
+.github/workflows/ci.yml    gate, audit and secrets jobs (owned by python-release)
+.github/dependabot.yml      weekly uv and Actions updates (owned by python-release)
 scripts/check.sh            canonical gate (owned by python-verify)
 scripts/size_check.py       200 warns, 250 fails (owned by python-verify)
+scripts/audit.sh            uv audit plus accepted advisories (owned by python-release)
+scripts/release.sh          check, bump, changelog, tag, push, release (owned by python-release)
+manage.py                   DJANGO_SETTINGS_MODULE=<package>.settings
 scripts/fetch_tailwind.sh   downloads the pinned standalone binary to .tools/
 scripts/build_css.sh        compiles src/<package>/static/input.css -> app.css
 scripts/serve.sh            Granian on 127.0.0.1:8000

@@ -3,7 +3,7 @@ name: python-standards
 description: The normative Python standards for the pack. Use when writing or reviewing Python code, when a repo needs CODING_STANDARDS.md, when `/code-review` asks which rule a diff violates, or when a card's Skills line names python-standards.
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Standards — the normative layer
@@ -22,15 +22,15 @@ lower-precedence skill, fixed at the source.
 CODING_STANDARDS.md of the repo > python-standards > python-web > procedure
 ```
 
-`python-scaffold`, `python-verify` and `python-testing` are procedure. Only this skill and the profile
-fragment are normative.
+`python-scaffold`, `python-verify`, `python-testing` and `python-release` are procedure. Only this skill and the
+profile fragment are normative.
 
 ## The file
 
 - One `CODING_STANDARDS.md` per Python repo, next to `pyproject.toml`.
 - English. `/code-review` reads it as the Standards axis and cites a section anchor.
 - Sections, in order: Environment & tooling; Dependencies; Structure; Naming; Typing;
-  Pydantic & configuration; Testing policy; Size & smells; Prose & UI copy; Minimal change.
+  Pydantic & configuration; Testing policy; Delivery; Size & smells; Prose & UI copy; Minimal change.
 - Each rule is imperative and self-contained. A rule that needs a recipe belongs in the skill that owns
   the procedure, not here.
 

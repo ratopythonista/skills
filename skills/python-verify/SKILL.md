@@ -1,9 +1,9 @@
 ---
 name: python-verify
-description: The Python merge gate. Defines scripts/check.sh, the canonical verify_commands, the 200/250 size check, the 90% line+branch coverage floor and the drift check, and how to keep the gate green without mise. Use when wiring CI or a merge gate for a Python repo, when check.sh fails, or when a card's Skills line names python-verify.
+description: The Python merge gate. Defines scripts/check.sh, the canonical verify_commands, the 200/250 size check, the 90% line+branch coverage floor and the drift check, and how to keep the gate green without mise. Use when wiring a merge gate locally or in the board, when check.sh fails, or when a card's Skills line names python-verify.
 license: MIT
 metadata:
-  version: 1.1.0
+  version: 1.1.1
 ---
 
 # Verify — the Python gate

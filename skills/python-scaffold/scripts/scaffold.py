@@ -7,6 +7,7 @@ package always render the same bytes. Stdlib only, Python 3.12.
     scaffold.py --profile web --project torneios --target ../python
     scaffold.py --profile web --target ../python --check
     scaffold.py --profile web --target ../python --gate-only
+    scaffold.py --profile web --target ../python --delivery-only
 """
 
 from __future__ import annotations
@@ -30,10 +31,25 @@ RANGE_RE = re.compile(r"(>=|<=|>|<|==)\s*(\d+(?:\.\d+){0,2})")
 TOKENS = {"PROJECT", "PACKAGE", "PACKAGE_CLASS"}
 EXECUTABLE = {"manage.py"}
 EXECUTABLE_PREFIXES = ("scripts/",)
-MANAGED = {
+GATE_MANAGED = {
     Path("scripts/check.sh"),
     Path("scripts/size_check.py"),
     Path("CODING_STANDARDS.md"),
+}
+DELIVERY_MANAGED = {
+    Path(".github/workflows/ci.yml"),
+    Path(".github/dependabot.yml"),
+    Path("scripts/audit.sh"),
+    Path("scripts/release.sh"),
+}
+DELIVERY_ONESHOT = {Path("LICENSE")}
+MANAGED = GATE_MANAGED | DELIVERY_MANAGED
+DELIVERY_FILES = {
+    Path(".github/workflows/ci.yml"): "ci.yml",
+    Path(".github/dependabot.yml"): "dependabot.yml",
+    Path("scripts/audit.sh"): "audit.sh",
+    Path("scripts/release.sh"): "release.sh",
+    Path("LICENSE"): "LICENSE",
 }
 PACK_ORDER = (
     "python-standards",
@@ -41,6 +57,7 @@ PACK_ORDER = (
     "python-verify",
     "python-testing",
     "python-web",
+    "python-release",
 )
 KEEP_START = b"<!-- pack-python:keep -->"
 KEEP_END = b"<!-- /pack-python:keep -->"
@@ -153,7 +170,7 @@ def require_pack(profile: str) -> dict[str, str]:
         version = meta.get("version", "")
         semver(version, where=f"{name}/SKILL.md")
         versions[name] = version
-    for name in ("python-scaffold", "python-web", "python-testing"):
+    for name in ("python-scaffold", "python-web", "python-testing", "python-release"):
         _, meta = skill_frontmatter(name)
         check_requires(name, meta.get("requires", ""), versions)
     if profile not in PROFILE_SKILLS:
@@ -342,6 +359,14 @@ def render(
         Rendered(Path("CODING_STANDARDS.md"), render_standards(profile, versions, tokens), 0o644)
     )
 
+    for relative, source_name in DELIVERY_FILES.items():
+        source = SKILLS_DIR / "python-release" / "templates" / source_name
+        if not source.is_file():
+            raise ScaffoldError(f"python-release is missing templates/{source_name}")
+        text = source.read_text(encoding="utf-8")
+        content = render_text(text, tokens, where=str(source)).encode("utf-8")
+        rendered.append(Rendered(relative, content, mode_for(relative)))
+
     seen: set[Path] = set()
     for item in rendered:
         if item.path in seen:
@@ -367,7 +392,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--check", action="store_true", help="re-render and diff; write nothing")
     parser.add_argument("--dry-run", action="store_true", help="list files; write nothing")
     parser.add_argument("--gate-only", action="store_true",
-                        help="touch only the managed files (standards and gate); never app files")
+                        help="touch only the managed gate files (standards and scripts/check.sh)")
+    parser.add_argument("--delivery-only", action="store_true",
+                        help="touch only the delivery files (CI, audit, release, Dependabot, LICENSE)")
     parser.add_argument("--force", action="store_true", help="overwrite managed files")
     args = parser.parse_args(argv)
 
@@ -375,6 +402,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--check and --dry-run are mutually exclusive")
     if args.check and args.force:
         parser.error("--check and --force are mutually exclusive")
+    if args.gate_only and args.delivery_only:
+        parser.error("--gate-only and --delivery-only are mutually exclusive")
 
     target: Path = args.target
     disk = read_target_config(target)
@@ -392,7 +421,13 @@ def main(argv: list[str] | None = None) -> int:
         versions = require_pack(profile)
         rendered = render(profile, project, package, versions)
         if args.gate_only:
-            rendered = [item for item in rendered if item.path in MANAGED]
+            rendered = [item for item in rendered if item.path in GATE_MANAGED]
+        elif args.delivery_only:
+            rendered = [
+                item
+                for item in rendered
+                if item.path in DELIVERY_MANAGED or item.path in DELIVERY_ONESHOT
+            ]
     except ScaffoldError as exc:
         print(f"scaffold: {exc}", file=sys.stderr)
         return 2
@@ -451,9 +486,10 @@ def main(argv: list[str] | None = None) -> int:
         destination.chmod(item.mode)
         written += 1
 
+    mode = ", gate-only" if args.gate_only else ", delivery-only" if args.delivery_only else ""
     print(
         f"scaffold: {written} written, {unchanged} unchanged, {kept} project-owned kept "
-        f"({profile}, {package}{', gate-only' if args.gate_only else ''})"
+        f"({profile}, {package}{mode})"
     )
     return 0
 

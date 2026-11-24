@@ -11,6 +11,7 @@
         "python-verify",
         "python-testing",
         "python-web",
+        "python-release",
         "pytest-fasthtml"
       ]
     }

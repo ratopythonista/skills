@@ -129,6 +129,19 @@ diff conforms; cite the section anchor when flagging a violation.
   `*/wsgi.py`, `*/apps.py`, and `tests/`. The command lives in `scripts/check.sh`; the mechanics
   (fixtures, test client, Playwright) live in `python-testing`.
 
+## Delivery
+
+- **One version source:** `[project].version` in `pyproject.toml`. The release tag is the same number prefixed with `v`; a second version file is a defect.
+- **Every release updates `CHANGELOG.md`**, which follows Keep a Changelog. `## [Unreleased]` sits at the top; a release names it `## [X.Y.Z] - YYYY-MM-DD`. An empty Unreleased means there is no release.
+- **Tags are annotated `vX.Y.Z` and cut from `main`.** A published tag is immutable: fix forward with a new patch.
+- **The GitHub Release notes are the changelog section**, never a second document.
+- **Public repos ship `LICENSE` and declare `[project].license`.** Private repos may omit it; the pack default is MIT.
+- **Apps release without artifacts; libraries attach wheel and sdist** to the GitHub Release. PyPI publication is an explicit decision per repo, through trusted publishing.
+- **CI runs the same two gate commands as the board**, plus the dependency audit and the secret scan. A second definition of the gate is a defect.
+- **The dependency audit blocks the merge.** An advisory without a fix is accepted in `.security/audit-ignores` by ID, with the reason in a comment, until a fix exists.
+- **Secrets are never committed.** The scanner is a backstop, not permission.
+- **Actions are pinned by major version tag**, never by a branch.
+
 ## Size & smells
 
 - **Size ceiling: 200 lines warns, 250 fails.** The check is `scripts/size_check.py`. `__init__.py`
